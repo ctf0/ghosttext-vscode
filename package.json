@@ -2,13 +2,10 @@
     "name": "ghosttext",
     "displayName": "GhostText",
     "description": "Use your text editor to write in your browser. Everything you type in the editor will be instantly updated in the browser (and vice versa).",
-    "version": "1.1.0",
-    "publisher": "tokoph",
+    "version": "0.0.1",
+    "publisher": "ctf0",
     "icon": "images/gticon.png",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/jtokoph/ghosttext-vscode.git"
-    },
+    "repository": "https://github.com/ctf0/ghosttext-vscode",
     "engines": {
         "vscode": "^1.5.0"
     },
@@ -16,7 +13,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.enableGhostText"
+        "*"
     ],
     "main": "./extension",
     "contributes": {
@@ -32,8 +29,18 @@
             "properties": {
                 "ghosttext.default_syntax": {
                     "type": "string",
-                    "default": "TODO",
+                    "default": "markdown",
                     "description": "default syntax"
+                },
+                "ghosttext.statusbar": {
+                    "type": "object",
+                    "default": {
+                        "text": "$(versions) Ghost",
+                        "tooltip": "GhostText: Enable",
+                        "align": "Right",
+                        "priority": 1000
+                    },
+                    "description": "status bar item config"
                 }
             }
         }

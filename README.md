@@ -1,15 +1,9 @@
 # GhostText for Visual Studio Code
-Use VSCODE editor to write in your browser. Everything you type in the editor will be instantly updated in the browser (and vice versa).
 
-## Instructions
+based on https://github.com/jtokoph/ghosttext-vscode + new features
 
-To install the extension search for `GhostText`.
+### New
 
-To enable the extension, open the command palette and choose `Enable GhostText`
-
-## More Information
-
-More information on the [main <img alt="GhostText" src="https://raw.githubusercontent.com/GhostText/GhostText/master/promo/gt_banner.png" height="20px" valign="-5px"> repo](https://github.com/GhostText/GhostText)
-
-## Small Print
-This is pretty much just a port of [GhostText for Atom](https://github.com/GhostText/GhostText-for-Atom)
+- Set a default file language
+- fix clearing the browser text when editor is closed
+- status bar icon for quick enable
