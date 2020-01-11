@@ -6,4 +6,5 @@ based on https://github.com/jtokoph/ghosttext-vscode + new features
 
 - Set a default file language
 - fix clearing the browser text when editor is closed
+- close the connection when editor tab is closed
 - status bar icon for quick enable

@@ -1,13 +1,12 @@
 # Change Log
-All notable changes to the "ghosttext" extension will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/) and this project adheres to [Semantic Versioning](http://semver.org/).
+## 0.0.1
 
-## 1.0.2 - 2017-01-18
-- Updated readme with instructions
+- init
 
-## 1.0.1 - 2017-01-18
-- Added Icon
+## 0.0.2
 
-## 1.0.0 - 2017-01-18
-- Initial release
+- fix connection not initialized properly
+- use untitled instead of tmp
+- close the connection on file close
+- show current edited page title when ghosting

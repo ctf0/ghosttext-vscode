@@ -1,12 +1,20 @@
 const vscode = require('vscode')
-const { Range, Position, workspace, window, commands, languages } = vscode
+const {
+    Range,
+    Position,
+    workspace,
+    window,
+    commands,
+    StatusBarAlignment,
+    ProgressLocation
+} = vscode
 const http = require('http')
 const ws = require('nodejs-websocket')
-const tmp = require('tmp')
 
 let myStatusBarItem
 let httpStatusServer = null
 let config = {}
+let enabled = false
 
 class OnMessage {
     constructor(webSocketConnection) {
@@ -21,19 +29,15 @@ class OnMessage {
         this.remoteChangedText = null
         this.editorTitle = null
         this.cleanupCallback = null
-        this.disposables = []
 
         this.closed = false
     }
 
     doCleanup() {
         this.cleanupCallback && this.cleanupCallback()
-        this.disposables.forEach((d) => d.dispose())
     }
 
     updateEditorText(text) {
-        languages.setTextDocumentLanguage(this.editor.document, config.default_syntax)
-
         this.editor.edit((editBuilder) => {
             let lineCount = this.editor.document.lineCount
             let lastLine = this.editor.document.lineAt(lineCount - 1)
@@ -49,49 +53,49 @@ class OnMessage {
         let request = JSON.parse(text)
 
         if (!this.editor) {
-            this.editorTitle = request.title
-            tmp.file((err, path, fd, cleanupCallback) => {
-                this.cleanupCallback = cleanupCallback
+            workspace.openTextDocument({
+                "language": config.default_syntax,
+                "content": request.text
+            }).then((textDocument) => {
+                this.document = textDocument
 
-                workspace.openTextDocument(path)
-                    .then((textDocument) => {
-                        this.document = textDocument
-                        window.showTextDocument(textDocument).then((editor) => {
-                            this.editor = editor
-                            this.updateEditorText(request.text)
+                window.showTextDocument(textDocument).then((editor) => {
+                    showMsg(`Editing "${request.title}"`, true)
 
-                            this.disposables.push(workspace.onDidCloseTextDocument((doc) => {
-                                if (doc == this.document && doc.isClosed) {
-                                    this.closed = true
-                                    this.webSocketConnection.close()
-                                    this.doCleanup()
-                                }
-                            }))
+                    this.editor = editor
+                    this.updateEditorText(request.text)
 
-                            this.disposables.push(workspace.onDidChangeTextDocument((event) => {
-                                if (event.document == this.document) {
-                                    let changedText = this.document.getText()
-
-                                    if (changedText !== this.remoteChangedText) {
-                                        if (changedText) {
-                                            this.remoteChangedText = changedText
-                                        }
-
-                                        let change = {
-                                            title: this.editorTitle,
-                                            text: changedText || this.remoteChangedText,
-                                            syntax: "TODO",
-                                            selections: []
-                                        }
-                                        change = JSON.stringify(change)
-
-                                        // empty doc change event fires before close. Work around race.
-                                        return setTimeout(() => this.closed || this.webSocketConnection.sendText(change), 50)
-                                    }
-                                }
-                            }))
-                        })
+                    workspace.onDidCloseTextDocument((doc) => {
+                        if (doc == this.document && doc.isClosed) {
+                            this.closed = true
+                            this.webSocketConnection.close()
+                            this.doCleanup()
+                        }
                     })
+
+                    workspace.onDidChangeTextDocument((event) => {
+                        if (event.document == this.document) {
+                            let changedText = this.document.getText()
+
+                            if (changedText !== this.remoteChangedText) {
+                                if (changedText) {
+                                    this.remoteChangedText = changedText
+                                }
+
+                                let change = {
+                                    title: this.editorTitle,
+                                    text: changedText || this.remoteChangedText,
+                                    syntax: "TODO",
+                                    selections: []
+                                }
+                                change = JSON.stringify(change)
+
+                                // empty doc change event fires before close. Work around race.
+                                return setTimeout(() => this.closed || this.webSocketConnection.sendText(change), 50)
+                            }
+                        }
+                    })
+                })
             })
         } else {
             this.updateEditorText(request.text)
@@ -109,7 +113,7 @@ async function activate(context) {
     await readConfig()
 
     // config
-    vscode.workspace.onDidChangeConfiguration(async (e) => {
+    workspace.onDidChangeConfiguration(async (e) => {
         if (e.affectsConfiguration('ghosttext')) {
             await readConfig()
             createStatusBarItem()
@@ -119,8 +123,17 @@ async function activate(context) {
     // command
     context.subscriptions.push(
         commands.registerCommand('extension.enableGhostText', async () => {
-            await window.showInformationMessage('Ghost text has been enabled!')
-            initServer()
+            let msg = null
+
+            if (!enabled) {
+                await initServer()
+                enabled = true
+                msg = 'is now enabled!'
+            } else {
+                msg = 'already enabled!'
+            }
+
+            await showMsg(msg)
         })
     )
 
@@ -133,7 +146,7 @@ async function createStatusBarItem(settings = config.statusbar) {
         myStatusBarItem.dispose()
     }
 
-    myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment[settings.align], settings.priority)
+    myStatusBarItem = window.createStatusBarItem(StatusBarAlignment[settings.align], settings.priority)
     myStatusBarItem.command = 'extension.enableGhostText'
     myStatusBarItem.text = settings.text
     myStatusBarItem.tooltip = settings.tooltip
@@ -143,24 +156,46 @@ async function createStatusBarItem(settings = config.statusbar) {
 }
 
 function initServer() {
-    httpStatusServer = http.createServer((req, res) => {
-        let wsServer = ws.createServer((conn) => new OnMessage(conn))
+    return new Promise((resolve) => {
+        httpStatusServer = http.createServer((req, res) => {
+            let wsServer = ws.createServer((conn) => new OnMessage(conn))
 
-        wsServer.on('listening', () => {
-            let response = {
-                ProtocolVersion: 1,
-                WebSocketPort: wsServer.socket.address().port
-            }
-            response = JSON.stringify(response)
-            res.writeHead(200, { 'Content-Type': 'application/json' })
+            wsServer.on('listening', () => {
+                let response = {
+                    ProtocolVersion: 1,
+                    WebSocketPort: wsServer.socket.address().port
+                }
+                response = JSON.stringify(response)
+                res.writeHead(200, { 'Content-Type': 'application/json' })
 
-            return res.end(response)
+                return res.end(response)
+            })
+
+            return wsServer.listen(0)
         })
 
-        return wsServer.listen(0)
-    })
+        httpStatusServer.listen(4001)
 
-    return httpStatusServer.listen(4001)
+        resolve()
+    })
+}
+
+function showMsg(msg, progress = false) {
+    if (!progress) {
+        return window.showInformationMessage(`Ghost Text: ${msg}`)
+    }
+
+    return window.withProgress({
+        location: ProgressLocation.Notification,
+        title: msg,
+        cancellable: true
+    }, async (progress, token) => {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve()
+            }, config.notificationTimeout * 1000)
+        })
+    })
 }
 
 function deactivate() {

@@ -2,7 +2,7 @@
     "name": "ghosttext",
     "displayName": "GhostText",
     "description": "Use your text editor to write in your browser. Everything you type in the editor will be instantly updated in the browser (and vice versa).",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "publisher": "ctf0",
     "icon": "images/gticon.png",
     "repository": "https://github.com/ctf0/ghosttext-vscode",
@@ -32,6 +32,11 @@
                     "default": "markdown",
                     "description": "default syntax"
                 },
+                "ghosttext.notificationTimeout": {
+                    "type": "number",
+                    "default": 30,
+                    "description": "wait for in seconds b4 automatically closing the notification"
+                },
                 "ghosttext.statusbar": {
                     "type": "object",
                     "default": {
@@ -50,15 +55,14 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "typescript": "^2.0.3",
-        "vscode": "^1.0.0",
-        "mocha": "^2.3.3",
-        "eslint": "^3.6.0",
+        "@types/mocha": "^2.2.32",
         "@types/node": "^6.0.40",
-        "@types/mocha": "^2.2.32"
+        "eslint": "^3.6.0",
+        "mocha": "^2.3.3",
+        "typescript": "^2.0.3",
+        "vscode": "^1.0.0"
     },
     "dependencies": {
-        "nodejs-websocket": "^1.7.1",
-        "tmp": "0.0.31"
+        "nodejs-websocket": "^1.7.1"
     }
 }
