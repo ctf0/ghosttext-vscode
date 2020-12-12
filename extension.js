@@ -9,6 +9,7 @@ const {
     ProgressLocation
 } = vscode
 const http = require('http')
+const PACKAGE_NAME = 'ghostText'
 const ws = require('nodejs-websocket')
 
 let myStatusBarItem
@@ -16,97 +17,8 @@ let httpStatusServer = null
 let config = {}
 let enabled = false
 
-class OnMessage {
-    constructor(webSocketConnection) {
-        this.webSocketConnection = webSocketConnection
-        let that = this
-        this.onTextCallBack = (text) => that.onMessage(text)
-
-        this.editor = null
-        this.document = null
-        this.webSocketConnection.on('text', this.onTextCallBack)
-        this.webSocketConnection.on('close', this.doCleanup)
-        this.remoteChangedText = null
-        this.editorTitle = null
-        this.cleanupCallback = null
-
-        this.closed = false
-    }
-
-    doCleanup() {
-        this.cleanupCallback && this.cleanupCallback()
-    }
-
-    updateEditorText(text) {
-        this.editor.edit((editBuilder) => {
-            let lineCount = this.editor.document.lineCount
-            let lastLine = this.editor.document.lineAt(lineCount - 1)
-            let endPos = lastLine.range.end
-            let range = new Range(new Position(0, 0), endPos)
-
-            editBuilder.delete(range)
-            editBuilder.insert(new Position(0, 0), text)
-        })
-    }
-
-    onMessage(text) {
-        let request = JSON.parse(text)
-
-        if (!this.editor) {
-            workspace.openTextDocument({
-                "language": config.default_syntax,
-                "content": request.text
-            }).then((textDocument) => {
-                this.document = textDocument
-
-                window.showTextDocument(textDocument).then((editor) => {
-                    showMsg(`Editing "${request.title}"`, true)
-
-                    this.editor = editor
-                    this.updateEditorText(request.text)
-
-                    workspace.onDidCloseTextDocument((doc) => {
-                        if (doc == this.document && doc.isClosed) {
-                            this.closed = true
-                            this.webSocketConnection.close()
-                            this.doCleanup()
-                        }
-                    })
-
-                    workspace.onDidChangeTextDocument((event) => {
-                        if (event.document == this.document) {
-                            let changedText = this.document.getText()
-
-                            if (changedText !== this.remoteChangedText) {
-                                if (changedText) {
-                                    this.remoteChangedText = changedText
-                                }
-
-                                let change = {
-                                    title: this.editorTitle,
-                                    text: changedText || this.remoteChangedText,
-                                    syntax: "TODO",
-                                    selections: []
-                                }
-                                change = JSON.stringify(change)
-
-                                // empty doc change event fires before close. Work around race.
-                                return setTimeout(() => this.closed || this.webSocketConnection.sendText(change), 50)
-                            }
-                        }
-                    })
-                })
-            })
-        } else {
-            this.updateEditorText(request.text)
-
-            return this.remoteChangedText = request.text
-        }
-    }
-}
-
 async function readConfig() {
-    return config = await workspace.getConfiguration('ghosttext')
+    return config = await workspace.getConfiguration(PACKAGE_NAME)
 }
 
 async function activate(context) {
@@ -114,7 +26,7 @@ async function activate(context) {
 
     // config
     workspace.onDidChangeConfiguration(async (e) => {
-        if (e.affectsConfiguration('ghosttext')) {
+        if (e.affectsConfiguration(PACKAGE_NAME)) {
             await readConfig()
             createStatusBarItem()
         }
@@ -155,6 +67,96 @@ async function createStatusBarItem(settings = config.statusbar) {
     return myStatusBarItem
 }
 
+/* Server ------------------------------------------------------------------- */
+class OnMessage {
+    constructor(webSocketConnection) {
+        this.webSocketConnection = webSocketConnection
+        let that = this
+        this.onTextCallBack = (text) => that.onMessage(text)
+
+        this.editor = null
+        this.document = null
+        this.webSocketConnection.on('text', this.onTextCallBack)
+        this.webSocketConnection.on('close', this.doCleanup)
+        this.remoteChangedText = null
+        this.editorTitle = null
+        this.cleanupCallback = null
+
+        this.closed = false
+    }
+
+    doCleanup() {
+        this.cleanupCallback && this.cleanupCallback()
+    }
+
+    updateEditorText(text) {
+        this.editor.edit((editBuilder) => {
+            let lineCount = this.editor.document.lineCount
+            let lastLine = this.editor.document.lineAt(lineCount - 1)
+            let endPos = lastLine.range.end
+            let range = new Range(new Position(0, 0), endPos)
+
+            editBuilder.delete(range)
+            editBuilder.insert(new Position(0, 0), text)
+        })
+    }
+
+    onMessage(text) {
+        let request = JSON.parse(text)
+
+        if (!this.editor) {
+            workspace.openTextDocument({
+                'language' : config.defaultSyntax,
+                'content'  : request.text
+            }).then((textDocument) => {
+                this.document = textDocument
+
+                window.showTextDocument(textDocument).then((editor) => {
+                    showMsg(`Editing "${request.title}"`, true)
+
+                    this.editor = editor
+                    this.updateEditorText(request.text)
+
+                    workspace.onDidCloseTextDocument((doc) => {
+                        if (doc == this.document && doc.isClosed) {
+                            this.closed = true
+                            this.webSocketConnection.close()
+                            this.doCleanup()
+                        }
+                    })
+
+                    workspace.onDidChangeTextDocument((event) => {
+                        if (event.document == this.document) {
+                            let changedText = this.document.getText()
+
+                            if (changedText !== this.remoteChangedText) {
+                                if (changedText) {
+                                    this.remoteChangedText = changedText
+                                }
+
+                                let change = {
+                                    title      : this.editorTitle,
+                                    text       : changedText || this.remoteChangedText,
+                                    syntax     : 'TODO',
+                                    selections : []
+                                }
+                                change = JSON.stringify(change)
+
+                                // empty doc change event fires before close. Work around race.
+                                return setTimeout(() => this.closed || this.webSocketConnection.sendText(change), 50)
+                            }
+                        }
+                    })
+                })
+            })
+        } else {
+            this.updateEditorText(request.text)
+
+            return this.remoteChangedText = request.text
+        }
+    }
+}
+
 function initServer() {
     return new Promise((resolve) => {
         httpStatusServer = http.createServer((req, res) => {
@@ -162,11 +164,11 @@ function initServer() {
 
             wsServer.on('listening', () => {
                 let response = {
-                    ProtocolVersion: 1,
-                    WebSocketPort: wsServer.socket.address().port
+                    ProtocolVersion : 1,
+                    WebSocketPort   : wsServer.socket.address().port
                 }
                 response = JSON.stringify(response)
-                res.writeHead(200, { 'Content-Type': 'application/json' })
+                res.writeHead(200, {'Content-Type': 'application/json'})
 
                 return res.end(response)
             })
@@ -180,15 +182,16 @@ function initServer() {
     })
 }
 
+/* Util --------------------------------------------------------------------- */
 function showMsg(msg, progress = false) {
     if (!progress) {
         return window.showInformationMessage(`Ghost Text: ${msg}`)
     }
 
     return window.withProgress({
-        location: ProgressLocation.Notification,
-        title: msg,
-        cancellable: true
+        location    : ProgressLocation.Notification,
+        title       : msg,
+        cancellable : true
     }, async (progress, token) => {
         return new Promise((resolve) => {
             setTimeout(() => {

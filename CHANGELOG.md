@@ -10,3 +10,7 @@
 - use untitled instead of tmp
 - close the connection on file close
 - show current edited page title when ghosting
+
+## 0.0.3
+
+- fix config package name

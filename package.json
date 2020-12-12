@@ -2,7 +2,7 @@
     "name": "ghosttext",
     "displayName": "GhostText",
     "description": "Use your text editor to write in your browser. Everything you type in the editor will be instantly updated in the browser (and vice versa).",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "publisher": "ctf0",
     "icon": "images/gticon.png",
     "repository": "https://github.com/ctf0/ghosttext-vscode",
@@ -27,17 +27,17 @@
             "type": "object",
             "title": "Ghost Text",
             "properties": {
-                "ghosttext.default_syntax": {
+                "ghostText.defaultSyntax": {
                     "type": "string",
                     "default": "markdown",
                     "description": "default syntax"
                 },
-                "ghosttext.notificationTimeout": {
+                "ghostText.notificationTimeout": {
                     "type": "number",
                     "default": 30,
                     "description": "wait for in seconds b4 automatically closing the notification"
                 },
-                "ghosttext.statusbar": {
+                "ghostText.statusbar": {
                     "type": "object",
                     "default": {
                         "text": "$(versions) Ghost",
@@ -55,14 +55,14 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "@types/mocha": "^2.2.32",
-        "@types/node": "^6.0.40",
-        "eslint": "^3.6.0",
-        "mocha": "^2.3.3",
-        "typescript": "^2.0.3",
-        "vscode": "^1.0.0"
+        "@types/mocha": "^8.2.0",
+        "@types/node": "^14.14.12",
+        "eslint": "^7.15.0",
+        "mocha": "^8.2.1",
+        "typescript": "^4.1.3",
+        "vscode": "^1.1.37"
     },
     "dependencies": {
-        "nodejs-websocket": "^1.7.1"
+        "nodejs-websocket": "^1.7.2"
     }
 }
